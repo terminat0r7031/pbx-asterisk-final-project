@@ -1,0 +1,187 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; Subroutine define ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[subExtSpecify]
+exten => start,1,Set(EXTLEN=${LEN(${ARG1})})
+	same => n,NoOp(${EXTLEN})
+	same => n,GotoIf($["${EXTLEN}" = "3"]?deskphone:softphone)
+	same => n(deskphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[1${ARG1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+	same => n(softphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[${ARG1:1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+
+[subCallForwarding]
+exten => start,1,Dial(SIP/${ARG1},15,${ARG3})
+	same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?voicemail)
+	same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL"]?forward)
+	same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?forward)
+	same => n(forward),Dial(SIP/${ARG2},15,${ARG3})
+	same => n(voicemail),Voicemail(${ARG1}@xinchao.com)
+	same => n,Hangup()
+
+
+[guest-1st-to-8th-floor]
+exten => _[1-8][0-1]X,1,Dial(SIP/${EXTEN},15,m)
+	same => n,Hangup()
+include => front-desk
+include => guest-services
+
+[front-desk]
+exten => _3[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[guest-services]
+exten => _3[7-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[management]
+exten => _15X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _115X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[finacial]
+exten => _25X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _125X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[hr]
+exten => _45X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _145X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[food-and-beverage]
+exten => _55X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _155X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[logistics]
+exten => _65X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _165X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[it]
+exten => _75X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _175X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+; Only it department has privilege to create a conference
+exten => 930,1,GoSub(subCreateConference,start,1())
+
+[sales]
+exten => _85X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _185X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[internal-services]
+
+include => parkedcalls
+
+; Every employee must use this extension to join to a conference
+exten => 931,1,NoOp(${CHANNEL()})
+	same => n,GoSub(subJoinConference,start,1(${EXTEN}))
+
+[internal-employee]
+
+include => management
+include => finacial
+include => front-desk
+include => guest-services
+include => hr
+include => food-and-beverage
+include => logistics
+include => it
+include => sales
+include => internal-services
+
+[parking_timeout]
+exten => s,1,NoOp(Parked call channel that timed out: ${CHANNEL(name)})
+	same => n,Playback(vm-goodbye)
+	same => n,Hangup()
+
+;################################################
+;######### Dynamic Call conference ##############
+;################################################
+
+[subCreateConference]
+exten => start,1,Set(__CONFERENCENUM=${RAND(932,950)}) ; Start off with a random conference number between 930 and 950
+	same => n,GotoIf($[${GROUP_COUNT(${CONFERENCENUM}@conference)} > 0] ? 1)
+	
+	; Set conference number
+	same => n,Set(GROUP(conference)=${CONFERENCENUM})
+	; Tell the user which conference this is
+	same => n,Playback(conf-youareinconfnum)
+	same => n,SayDigits(${CONFERENCENUM})
+	same => n,Wait(1)
+	same => n,Playback(next)
+	same => n,Wait(1)
+
+	; Ask admin to enter the extension can become the leader of the conference
+	same => n,Read(LEADEREXT,conf-please-enter-the-extension-of-the-leader,3)
+	same => n,NoOp(${LEADEREXT})
+	same => n,Set(DB(CONF/${CONFERENCENUM}/leaderext)=${LEADEREXT})
+	same => n,Wait(1)
+	same => n,Playback(next)
+	
+	; Ask admin to enter the pin code that users can use to join to the conference
+	same => n,Read(PINCODE,conf-please-enter-the-pin-that-users-can-use-to-join-to-the-conference,4)
+	same => n,Set(CONFBRIDGE(user,pin)=${PINCODE})
+	same => n,NoOp(${PINCODE})
+	same => n,Wait(1)	
+	
+	; Playback everything have just enter
+	same => n,Playback(conf-now-let-take-a-look-what-you-ve-done)
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-extension-of-the-leader-is)
+	same => n,SayDigits(${LEADEREXT})
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-pin-code-is)
+	same => n,SayDigits(${PINCODE})
+	same => n,Wait(1)
+
+	; Create the conference using the "conference" Bridge Profile and "admin" User profile
+	same => n,ConfBridge(${CONFERENCENUM},conference,admin)
+
+[subJoinConference]
+; Ask the user to key in their conference number, then read the 3 DTMF digits
+exten => start,1,Read(CONFERENCENUM,enter-conf-call-number,3)
+	; check if the conference doesn't exist, if so, go to label invalid
+	same => n,NoOp(${GROUP_COUNT(${CONFERENCENUM}@conference)})
+	same => n,NoOp(${DB(CONF/${CONFERENCENUM}/leaderext)})
+	same => n,NoOp(${ARG1})
+	same => n,GotoIf($[${GROUP_COUNT(${CONFERENCENUM}@conference)} = 0] ? 7)
+	; The first thing we need to do is specify whether that extension is leader or not
+	same => n,GotoIf($[${DB(CONF/${CONFERENCENUM}/leaderext)} = ${ARG1}]?leader:other)
+	same => n(leader),ConfBridge(${CONFERENCENUM},conference,leader)
+	same => n(other),ConfBridge(${CONFERENCENUM},conference,other)
+	same => n(invalid_ext),Playback(conf-invalid)
+	same => n,Hangup()
+
+

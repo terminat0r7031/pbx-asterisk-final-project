@@ -1,0 +1,6 @@
+[general]
+
+[default]
+
+351 => #123abc#, John Connor,,,saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes
+751 => 751, John Connor,,,saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes

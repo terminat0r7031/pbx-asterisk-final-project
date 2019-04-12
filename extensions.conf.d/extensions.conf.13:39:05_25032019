@@ -1,0 +1,200 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; Subroutine define ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[subExtSpecify]
+exten => start,1,Set(EXTLEN=${LEN(${ARG1})})
+	same => n,NoOp(${EXTLEN})
+	same => n,GotoIf($["${EXTLEN}" = "3"]?deskphone:softphone)
+	same => n(deskphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[1${ARG1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+	same => n(softphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[${ARG1:1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+
+[subCallForwarding]
+exten => start,1,Dial(SIP/${ARG1},15,${ARG3})
+	same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?voicemail)
+	same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL"]?forward)
+	same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?forward)
+	same => n(forward),Dial(SIP/${ARG2},15,${ARG3})
+	same => n(voicemail),Voicemail(${ARG1}@xinchao.com)
+	same => n,Hangup()
+
+
+[guest-1st-to-8th-floor]
+exten => _[1-8][0-1]X,1,Dial(SIP/${EXTEN},15,m)
+	same => n,Hangup()
+include => front-desk
+include => guest-services
+
+[front-desk]
+exten => _3[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[guest-services]
+exten => _3[7-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[management]
+exten => _15X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _115X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[finacial]
+exten => _25X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _125X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[hr]
+exten => _45X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _145X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[food-and-beverage]
+exten => _55X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _155X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[logistics]
+exten => _65X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _165X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[it]
+exten => _75X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _175X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+; Only it department has privilege to create a conference
+exten => 930,1,GoSub(subCreateConference,start,1())
+
+[sales]
+exten => _85X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _185X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[internal-services]
+
+include => parkedcalls
+
+; Every employee must use this extension to join to a conference
+exten => 931,1,GoSub(subJoinConference,start,1())
+
+[internal-employee]
+
+include => management
+include => finacial
+include => front-desk
+include => guest-services
+include => hr
+include => food-and-beverage
+include => logistics
+include => it
+include => sales
+include => internal-services
+
+[parking_timeout]
+exten => s,1,NoOp(Parked call channel that timed out: ${CHANNEL(name)})
+	same => n,Playback(vm-goodbye)
+	same => n,Hangup()
+
+;################################################
+;######### Dynamic Call conference ##############
+;################################################
+
+[subCreateConference]
+exten => start,1,Set(__CONFERENCENUM=${RAND(932,950)}) ; Start off with a random conference number between 930 and 950
+	same => n,GotoIf($[${GROUP_COUNT(${CONFERENCENUM}@conference)} > 0] ? 1)
+	
+	
+	; Ask admin to enter the maximum of members
+	same => n,Read(MAXMEM,conf-please-enter-the-number-of-members-attend-the-conference,2)
+	same => n,Set(MAXMEM=${FILTER(0-9,${MAXMEM})})
+	; Set max_members value for "conference" Bridge type
+	same => n,Set(CONFBRIDGE(bridge,max_members)=${MAXMEM})
+	same => n,Wait(0.5)
+
+	; Ask admin to enter the pin that the leader can use to join the conference
+	; That pin has 4 digits
+	same => n,Read(LEADERPIN,conf-please-enter-pin-code-for-the-leader,4)
+	same => n,Set(LEADERPIN=${FILTER(0-9,${LEADERPIN})})
+	; Store that pin into asterisk database
+	same => n,Set(DB(CONF/${CONFERENCENUM}/LEADERPIN)=${LEADERPIN})
+	same => n,Wait(0.5)	
+
+	; Ask admin to enter the pin that other attendants can use to join the conference
+	same => n,Read(OTHERPIN,conf-please-enter-pin-code-for-other-attendants,4)
+	same => n,Set(OTHERPIN=${FILTER(0-9,${OTHERPIN})})
+	; Store that pin into asterisk database
+	same => n,Set(DB(CONF/${CONFERENCENUM}/OTHERPIN)=${OTHERPIN})
+	same => n,Wait(0.5)
+
+	; Playback everything have just enter
+	same => n,Playback(conf-now-let-take-a-look-what-you-ve-done)
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-conference-number-is)
+	same => n,SayDigits(${CONFERENCENUM})
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-pin-code-of-the-leader-is)
+	same => n,SayDigits(${DB(CONF/${CONFERENCENUM}/LEADERPIN)})
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-pin-code-of-the-attendants-is)
+	same => n,SayDigits(${DB(CONF/${CONFERENCENUM}/OTHERPIN)})
+	
+	; Set conference number
+	same => n,Set(GROUP(conference)=${CONFERENCENUM})
+	same => n,Set(CONFBRIDGE(bridge,template)=conference)
+	same => n,Set(CONFBRIDGE(bridge,max_members)=${MAXMEM})
+	; Join to the conference
+	same => n,ConfBridge(${CONFERENCENUM},,admin)
+[subJoinConference]
+; Ask the user to key in their conference number, then read the 3 DTMF digits
+exten => start,1,Read(CONFERENCENUM,enter-conf-call-number,3)
+	same => n,NoOp(${CONFBRIDGE_INFO(admins,${CONFERENCENUM})})
+	; Check if the conference doesn't exist, if so, go to label invalid
+	same => n,GotoIf($[${GROUP_COUNT(${CONFERENCENUM}@conference)} = 0]?invalid_ext)
+	
+	; Ask member to enter the pin code
+	same => n,Read(PIN,enter-conf-pin-number,4)
+	same => n,Set(PIN=${FILTER(0-9,${PIN})})
+	
+	; Check the pin code is for leader
+	same => n,GotoIf($[${DB(CONF/${CONFERENCENUM}/LEADERPIN)} = ${PIN}]?leader:next)
+	; Check the pin code is for the other
+	same => n(next),GotoIf($[${DB(CONF/${CONFERENCENUM}/OTHERPIN)} = ${PIN}]?other:invalid_pin)
+
+	; Join the conference
+	same => n(leader),ConfBridge(${CONFERENCENUM},conference,leader)
+	same => n(other),ConfBridge(${CONFERENCENUM},conference,other)
+	same => n(invalid_ext),Playback(conf-invalid)
+	same => n,Hangup()
+	same => n(invalid_pin),Playback(pin-invalid)
+	same => n,Hangup()
+

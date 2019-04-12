@@ -1,0 +1,14 @@
+[general]
+autofill=yes
+shared_lastcall=yes
+
+[super-general-queue](!)
+musicclass=default
+strategy=rrmemory
+joinempty=no
+leavewhenempty=yes
+ringinuse=no
+
+[front-desk](super-general-queue)
+
+[guest-services](super-general-queue)

@@ -1,0 +1,127 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; Subroutine define ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[subExtSpecify]
+exten => start,1,Set(EXTLEN=${LEN(${ARG1})})
+	same => n,NoOp(${EXTLEN})
+	same => n,GotoIf($["${EXTLEN}" = "3"]?deskphone:softphone)
+	same => n(deskphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[1${ARG1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+	same => n(softphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[${ARG1:1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+
+[subCallForwarding]
+exten => start,1,Dial(SIP/${ARG1},15,${ARG3})
+	same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?voicemail)
+	same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL"]?forward)
+	same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?forward)
+	same => n(forward),Dial(SIP/${ARG2},15,${ARG3})
+	same => n(voicemail),Voicemail(${ARG1}@xinchao.com)
+	same => n,Hangup()
+
+
+[guest-1st-to-8th-floor]
+exten => _[1-8][0-1]X,1,Dial(SIP/${EXTEN},15,m)
+	same => n,Hangup()
+include => front-desk
+include => guest-services
+
+[front-desk]
+exten => _3[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[guest-services]
+exten => _3[7-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[management]
+exten => _15X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _115X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[finacial]
+exten => _25X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _125X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[hr]
+exten => _45X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _145X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[food-and-beverage]
+exten => _55X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _155X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[logistics]
+exten => _65X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _165X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[it]
+exten => _75X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _175X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[sales]
+exten => _85X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _185X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[internal-services]
+
+include => parkedcalls
+
+exten => 940,1,NoOp()
+	same => n,ConfBridge(${EXTEN})
+
+
+[internal-employee]
+
+include => management
+include => finacial
+include => front-desk
+include => guest-services
+include => hr
+include => food-and-beverage
+include => logistics
+include => it
+include => sales
+include => internal-services
+
+[parking_timeout]
+exten => s,1,NoOp(Parked call channel that timed out: ${CHANNEL(name)})
+	same => n,Playback(vm-goodbye)
+	same => n,Hangup()
+
+ 

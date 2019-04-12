@@ -1,0 +1,300 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; START--> Call Forwarding subroutine ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[subExtSpecify]
+exten => start,1,Set(EXTLEN=${LEN(${ARG1})})
+	same => n,NoOp(${EXTLEN})
+	same => n,GotoIf($["${EXTLEN}" = "3"]?deskphone:softphone)
+	same => n(deskphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[1${ARG1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+	same => n(softphone),Set(EXT1=${ARG1})
+	same => n,Set(EXT2=$[${ARG1:1}])
+	same => n,GoSub(subCallForwarding,start,1(${EXT1},${EXT2},${ARG2}))
+
+[subCallForwarding]
+exten => start,1,Dial(SIP/${ARG1},15,${ARG3})
+	same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?voicemail)
+	same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL"]?forward)
+	same => n,GotoIf($["${DIALSTATUS}" = "NOANSWER"]?forward)
+	same => n(forward),Dial(SIP/${ARG2},15,${ARG3})
+	same => n(voicemail),Voicemail(${ARG1}@xinchao.com)
+	same => n,Hangup()
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; END--> Call Forwarding subroutine ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;###############################################################################################
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; START--> Automatic Call Distribution (ACD) Queues ;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[guest-queues]
+
+; front-desk 
+exten => 350,1,Queue(front-desk)
+
+; guest-services
+exten => 370,1,Queue(guest-service)
+
+[queue-member-functions]
+
+exten => 950,1,Verbose(2, Logging In Queue Member)
+	; Get Channel info
+	same => n,Set(MemberChannel=${CHANNEL(channeltype)}/${CHANNEL(peername)})
+	; Count number of field in context name
+	same => n,Set(ContextFieldQty=${FIELDQTY(CONTEXT,-)})
+	; Queue name + "-privilege" = context name => queuename's length = ContextName's length - 1
+	same => n,Set(ContextFieldQty=${MATH(${ContextFieldQty}-1,i)})
+	; Extract Queue name from Context name
+	same => n,Set(QueueName=${CUT(CONTEXT,,1-${ContextFieldQty})})	
+	; Add agent (employee) to their Queue that they belong to
+	same => n,AddQueueMember(${QueueName},${MemberChannel})
+	; AddQueueMember return value: ADDED, MEMBERALREADY, NOSUCHQUEUE
+	same => n,NoOp(${AQMSTATUS})
+	same => n,GotoIf($["${AQMSTATUS}" = "ADDED"]?added)
+	same => n,GotoIf($["${AQMSTATUS}" = "MEMBERALREADY"]?memberalready:hangup)
+	same => n(added),Playback(agent-loginok)
+	same => n,Hangup()
+	same => n(memberalready),Playback(agent-alreadyon)
+	same => n(hangup),Hangup()
+
+exten => 951,1,Verbose(2, Logging Out Queue Member)
+	; Get Channel info
+	same => n,Set(MemberChannel=${CHANNEL(channeltype)}/${CHANNEL(peername)})
+	; Count number of field in context name
+	same => n,Set(ContextFieldQty=${FIELDQTY(CONTEXT,-)})
+	; Queue name + "-privilege" = context name => queuename's length = ContextName's length - 1
+	same => n,Set(ContextFieldQty=${MATH(${ContextFieldQty}-1,i)})
+	; Extract Queue name from Context name
+	same => n,Set(QueueName=${CUT(CONTEXT,,1-${ContextFieldQty})})	
+	; Remove agent (employee) from their Queue
+	same => n,RemoveQueueMember(${QueueName},${MemberChannel})
+	; RemoveQueueMember return value: REMOVED, NOTINQUEUE, NOSUCHQUEUE 
+	same => n,GotoIf($[${RQMSTATUS} = "REMOVED"]?removed)
+	same => n,GotoIf($[${RQMSTATUS} = "NOTINQUEUE"]?notinqueue:hangup)
+	same => n(removed),Playback(agent-loggedoff)
+	same => n,Hangup()
+	same => n(notinqueue),Playback(agent-alreadyon)
+	same => n,Hange()
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; END--> Automatic Call Distribution (ACD) Queues ;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;#######################################################################################
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; START--> Dynamic Call conference subroutines ;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[subCreateConference]
+exten => start,1,Set(__ConferenceNum=${RAND(931,948)}) ; Start off with a random conference number between 930 and 950
+	same => n,GotoIf($[${GROUP_COUNT(${ConferenceNum}@conference)} > 0] ? 1)
+	
+	; Set group number
+	same => n,Set(GROUP(conference)=${ConferenceNum})
+	same => n,Set(CONFBRIDGE(bridge,template)=conference)
+	
+	; Ask admin to enter the maximum of members
+	same => n,Read(MaxMem,conf-please-enter-the-number-of-members-attend-the-conference,2)
+	same => n,Set(MaxMem=${FILTER(0-9,${MaxMem})})
+	; Set max_members value for "conference" Bridge type
+	same => n,Set(CONFBRIDGE(bridge,max_members)=${MaxMem})
+	same => n,Wait(0.5)
+
+	; Ask admin to enter the pin that the leader can use to join the conference
+	; That pin has 4 digits
+	same => n,Read(LeaderPin,conf-please-enter-pin-code-for-the-leader,4)
+	same => n,Set(LeaderPin=${FILTER(0-9,${LeaderPin})})
+	; Store that pin into asterisk database
+	same => n,Set(DB(CONF/${ConferenceNum}/LeaderPin)=${LeaderPin})
+	same => n,Wait(0.5)	
+
+	; Ask admin to enter the pin that other attendants can use to join the conference
+	same => n,Read(OtherPin,conf-please-enter-pin-code-for-other-attendants,4)
+	same => n,Set(OtherPin=${FILTER(0-9,${OtherPin})})
+	; Store that pin into asterisk database
+	same => n,Set(DB(CONF/${ConferenceNum}/OtherPin)=${OtherPin})
+	same => n,Wait(0.5)
+
+	; Playback everything have just enter
+	same => n,Playback(conf-now-let-take-a-look-what-you-ve-done)
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-conference-number-is)
+	same => n,SayDigits(${ConferenceNum})
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-pin-code-of-the-leader-is)
+	same => n,SayDigits(${DB(CONF/${ConferenceNum}/LeaderPin)})
+	same => n,Wait(0.5)
+	same => n,Playback(conf-the-pin-code-of-the-attendants-is)
+	same => n,SayDigits(${DB(CONF/${ConferenceNum}/OtherPin)})
+	
+	; Join to the conference
+	same => n,ConfBridge(${ConferenceNum},,admin,admin_menu)
+
+
+[subJoinConference]
+; Ask the user to key in their conference number, then read the 3 DTMF digits
+exten => start,1,Read(ConferenceNum,enter-conf-call-number,3)
+	same => n,NoOp(${CONFBRIDGE_INFO(admins,${ConferenceNum})})
+	; Check if the conference doesn't exist, if so, go to label invalid
+	same => n,GotoIf($[${GROUP_COUNT(${ConferenceNum}@conference)} = 0]?invalid_ext)
+	
+	; Ask member to enter the pin code
+	same => n,Read(Pin,enter-conf-pin-number,4)
+	same => n,Set(Pin=${FILTER(0-9,${Pin})})
+	
+	; Check the pin code is for leader
+	same => n,GotoIf($[${DB(CONF/${ConferenceNum}/LeaderPin)} = ${Pin}]?leader:next)
+	; Check the pin code is for the other
+	same => n(next),GotoIf($[${DB(CONF/${ConferenceNum}/OtherPin)} = ${Pin}]?other:invalid_pin)
+
+	; Join the conference
+	same => n(leader),ConfBridge(${ConferenceNum},conference,leader,user_menu)
+	same => n(other),ConfBridge(${ConferenceNum},conference,other,user_menu)
+	same => n(invalid_ext),Playback(conf-invalid)
+	same => n,Hangup()
+	same => n(invalid_pin),Playback(pin-invalid)
+	same => n,Hangup()
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; END--> Dynamic Call conference subroutines ;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+[guest-1st-to-8th-floor]
+exten => _[1-8][0-1]X,1,Dial(SIP/${EXTEN},15,m)
+	same => n,Hangup()
+
+include => guest-queues
+
+[front-desk]
+exten => _3[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+
+[guest-services]
+exten => _3[7-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+
+[management]
+exten => _15X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _115X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[finacial]
+exten => _25X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _125X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[hr]
+exten => _45X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _145X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[food-and-beverage]
+exten => _55X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _155X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+
+[logistics]
+exten => _65X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _165X,1,Set(DIALOPS=mTtK)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+
+[it]
+exten => _75X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _175X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[sales]
+exten => _85X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+exten => _185X,1,Set(DIALOPS=mTtKk)
+	same => n,GoSub(subExtSpecify,start,1(${EXTEN},${DIALOPS}))
+
+[internal-services]
+
+include => parkedcalls
+
+; Every employee must use this extension to join to a conference
+exten => 949,1,GoSub(subJoinConference,start,1())
+
+
+[internal-calls]
+
+include => management
+include => finacial
+include => front-desk
+include => guest-services
+include => hr
+include => food-and-beverage
+include => logistics
+include => it
+include => sales
+include => internal-services
+
+[parking_timeout]
+exten => s,1,NoOp(Parked call channel that timed out: ${CHANNEL(name)})
+	same => n,Playback(vm-goodbye)
+	same => n,Hangup()
+
+[front-desk-privilege]
+
+; Queue function
+include => queue-member-functions
+include => internal-calls
+
+[guest-services-privilege]
+
+[sales-privilege]
+
+[it-privilege]
+
+; Only it department has privilege to create a conference
+exten => 930,1,GoSub(subCreateConference,start,1())
+
+exten => CleanUpDB,1,Set(i=932)
+	same => n,While($[${i} < 951])
+	same => n,NoOp(${DB_DELETE(CONF/${i}/LEADERPIN)})
+	same => n,NoOp(${DB_DELETE(CONF/${i}/OTHERPIN)})
+	same => n,Set(i=$[${i} + 1])
+	same => n,EndWhile
+
+exten => LeaveConference,1,Set(LeaderPinStatus=${DB_EXISTS(CONF/${ConferenceNum}/LeaderPin)})
+	same => n,GotoIf($[${LeaderPinStatus} = 1]?DeleteLeaderPin:CheckOtherPin)
+	same => n(DeleteLeaderPin),NoOp(${DB_DELETE(CONF/${ConferenceNum}/LeaderPin)})
+	same => n(CheckOtherPin),Set(OtherPinStatus=${DB_EXISTS(CONF/${ConferenceNum}/OtherPin)})
+	same => n,GotoIf($[${OtherPinStatus} = 1]?DeleteOtherPin:Hangup)
+	same => n(DeleteOtherPin),NoOp(${DB_DELETE(CONF/${ConferenceNum}/OtherPin)})
+	same => n(Hangup),PlayBack(goodbye)
+	same => n,Hangup()
+; Allow to call another employee
+include => internal-calls
+

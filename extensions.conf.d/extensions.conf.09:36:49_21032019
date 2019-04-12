@@ -1,0 +1,93 @@
+[guest-1st-to-8th-floor]
+exten => _[1-8][0-1]X,1,Dial(SIP/${EXTEN},15,m)
+	same => n,Hangup()
+include => front-desk
+include => guest-services
+
+[management]
+
+exten => _15X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,NoOp(${DIALSTATUS})
+	same => n,GotoIf($["${DIALSTATUS}" = "BUSY"]?busy:unavail)
+	same => n(busy),VoiceMail(${EXTEN}@xinchao.com,b)
+	same => n,Hangup()
+	same => n(unavail),GotoIf($["${DIALSTATUS}"="CHANUNAVAIL"]?channelunavailable)
+	same => n(channelunavailable),Dial(SIP/$[1${EXTEN},15,TtK)
+	same => n,NoOp(I AM UNAVAILABLE)
+	same => n,VoiceMail(${EXTEN}@xinchao.com,u)
+	same => n,Hangup()
+	
+exten => _115X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,NoOp(${DIALSTATUS})
+	same => n,GotoIf($["${DIALSTATUS}"="BUSY"]?busy:unavail)
+	same => n(busy),VoiceMail(${EXTEN}@xinchao.com,b)
+	same => n,Hangup()
+	same => n(unavail),GotoIf($["${DIALSTATUS}"="CHANUNAVAIL"]?channelunavailable)
+	same => n(channelunavailable),Dial(SIP/$[${EXTEN:1},15,TtK)
+	same => n,NoOp(I AM UNAVAILABLE)
+	same => n,VoiceMail(${EXTEN:1}@xinchao.com,u)
+	same => n,Hangup()
+
+
+[finacial]
+exten => _25X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+[front-desk]
+exten => _3[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+
+[guest-services]
+exten => _3[7-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+include => guest-1st-to-8th-floor
+
+[hr]
+exten => _45X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+[food-and-beverage]
+exten => _5[5-6]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+[logistics]
+exten => _6[5-9]X,1,Dial(SIP/${EXTEN},15,TtK)
+	same => n,Hangup()
+
+[it]
+exten => _75X,1,Dial(SIP/${EXTEN},15,TtKk)
+	same => n,Hangup()
+
+[sales]
+exten => _85X,1,Dial(SIP/${EXTEN},15,TtKk)
+	same => n,Hangup()
+
+[internal-services]
+
+exten => 940,1,NoOp()
+	same => n,ParkAndAnnounce(,,silence/1:call-waiting:letters/at:PARKED:auth-thankyou,SIP/pa_system)
+	same => n,Hangup()
+
+include => parkedcalls
+
+[internal-employee]
+
+include => management
+include => finacial
+include => front-desk
+include => guest-services
+include => hr
+include => food-and-beverage
+include => logistics
+include => it
+include => sales
+include => internal-services
+
+[parking_timeout]
+exten => s,1,NoOp(Parked call channel that timed out: ${CHANNEL(name)})
+	same => n,Playback(vm-goodbye)
+	same => n,Hangup()
+
+ 
