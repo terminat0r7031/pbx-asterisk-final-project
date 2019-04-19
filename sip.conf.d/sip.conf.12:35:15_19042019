@@ -1,0 +1,242 @@
+[general]
+
+register => cocobaydanang:123456@172.16.1.10
+
+bindaddr=0.0.0.0
+udpbindaddr=0.0.0.0
+tcpenable=no
+
+[viettel]
+type=friend
+host=dynamic
+username=viettel
+secret=123456
+context=external-calls
+disallow=all
+allow=g722
+allow=ulaw
+allow=alaw
+canreinvite=no
+insecure=port,invite
+fromdomain=172.16.1.10
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Template for all phone ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[super-general-phone](!)
+type=friend
+host=dynamic
+dtmf_mode=rfc2833
+disallow=all
+allow=g722
+allow=ulaw
+allow=alaw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Template for Guest phone ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[guest-phone](!,super-general-phone)
+context=guest
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; Guest phone ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; 1st floor
+[101](guest-phone)
+secret=#123abc#
+
+; 2nd floor
+[201](guest-phone)
+secret=#123abc#
+
+; 3rd floor
+[301](guest-phone)
+secret=#123abc#
+
+; 4th floor
+[401](guest-phone)
+secret=#123abc#
+
+; 5th floor
+[501](guest-phone)
+secret=#123abc#
+
+; 6th floor
+[601](guest-phone)
+secret=#123abc#
+
+; 7th floor
+[701](guest-phone)
+secret=#123abc#
+
+; 8th floor
+[801](guest-phone)
+secret=#123abc#
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; PA system;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[pa_system](super-general-phone)
+context=internal-employee
+callcounter=yes
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; Template for Employee's phone ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[employee-phone](!,super-general-phone)
+context=internal-calls
+
+
+;##################################################
+;########## Management department #################
+;##################################################
+[management-phone](!,employee-phone)
+context=management-privilege
+
+; manager 1
+[151](management-phone)
+secret=#123abc#
+
+[1151](management-phone)
+secret=#123abc#
+
+[152](management-phone)
+secret=#123abc#
+
+;###################################################
+;############## Finacial department ################
+;###################################################
+[finacial-phone](!,employee-phone)
+namedcallgroup=finacial
+namedpickupgroup=finacial
+context=finacial-privilege
+
+; fin-employee 1
+[251](finacial-phone)
+secret=#123abc#
+
+[1251](finacial-phone)
+secret=#123abc#
+
+;####################################################
+;################ Front desk ########################
+;####################################################
+[front-desk-phone](!,employee-phone)
+context=front-desk-privilege
+
+; receptionist 1
+[351](front-desk-phone)
+secret=#123abc#
+
+[352](front-desk-phone)
+secret=#123abc#
+
+[353](front-desk-phone)
+secret=#123abc#
+
+;####################################################
+;############# Guest Services #######################
+;####################################################
+[guest-services-phone](!,employee-phone)
+context=guest-services-privilege
+
+; guest-srv-employee 1
+[371](guest-services-phone)
+secret=#123abc#
+
+[372](guest-services-phone)
+secret=#123abc#
+
+[373](guest-services-phone)
+secret=#123abc#
+
+;####################################################
+;################ HR department #####################
+;####################################################
+[hr-phone](!,employee-phone)
+namedcallgroup=hr
+namedpickupgroup=hr
+context=hr-privilege
+
+; hr-employee 1
+[451](hr-phone)
+secret=#123abc#
+
+;####################################################
+;######## Food & Beverage department ################
+;####################################################
+[food-beverage-phone](!,employee-phone)
+context=food-beverage-privilege
+
+; food&beverage-employee 1
+[551](food-beverage-phone)
+secret=#123abc#
+
+;####################################################
+;############# Logistics department #################
+;####################################################
+
+[logistics-phone](!,employee-phone)
+context=logistics-privilege
+
+; logistics-employee 1
+[651](logistics-phone)
+secret=#123abc#
+
+;####################################################
+;################ IT department #####################
+;####################################################
+[it-phone](!,employee-phone)
+context=it-privilege
+parkinglot=it-parkinglot
+namedcallgroup=it
+namedpickupgroup=it
+
+; it-employee 1
+[751](it-phone)
+secret=#123abc#
+
+;####################################################
+;################ Sales department ##################
+;####################################################
+[sales-phone](!,employee-phone)
+parkinglot=sales-parkinglot
+namedcallgroup=sales
+namedpickupgroup=sales
+context=sales-privilege
+
+; sales-employee 1
+[851](sales-phone)
+secret=#123abc#
+
+; sales-employee 2
+[852](sales-phone)
+secret=#123abc#
+
+;####################################################
+;################ Call Center #######################
+;####################################################
+[call-center-phone](!,employee-phone)
+context=call-center
+
+;call center phone 1
+[991](call-center-phone)
+secret=#123abc#
+
+;call center phone 2
+[992](call-center-phone)
+secret=#123abc#
+
+;call center phone 3
+[993](call-center-phone)
+secret=#123abc#
+
+;call center phone 4
+[994](call-center-phone)
+secret=#123abc#
+
+

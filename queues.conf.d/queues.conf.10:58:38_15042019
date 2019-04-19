@@ -1,0 +1,27 @@
+[general]
+autofill=yes
+shared_lastcall=yes
+
+[super-general-queue](!)
+musicclass=default
+strategy=random
+joinempty=no
+leavewhenempty=yes
+ringinuse=no
+
+[front-desk](super-general-queue)
+member => SIP/351
+member => SIP/352
+member => SIP/353
+
+[guest-services](super-general-queue)
+member => SIP/371
+member => SIP/372
+member => SIP/373
+
+
+[finacial](super-general-queue)
+
+[it](super-general-queue)
+
+[sales](super-general-queue)

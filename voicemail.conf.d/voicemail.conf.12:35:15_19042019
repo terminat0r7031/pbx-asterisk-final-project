@@ -1,0 +1,47 @@
+;!
+;! Automatically generated configuration file
+;! Filename: voicemail.conf (/etc/asterisk/voicemail.conf)
+;! Generator: app_voicemail
+;! Creation Date: Fri Apr  5 13:09:25 2019
+;!
+[general]
+format = wav49|gsm|wav
+maxmsg = 100  ; maximum number of messages per folder
+maxsecs = 120  ; maximum length of a voicemail message in seconds
+minsecs = 3  ; minimum length of a voicemail message in seconds
+maxsilence = 10  ; how many seconds of silence befone we end the recording
+maxlogins = 5  ; max number of failed login attemps
+externpasscheck = /root/voicemailpasscheck.sh
+
+[management]
+
+151 => 151, Manager 1,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+152 => 152, Manager 2,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+[finacial]
+
+251 => 04042019,Finacial em 1,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+[front-desk]
+
+[guest-services]
+
+[hr]
+
+451 => 04042019,HR 1,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+[food-and-beverage]
+
+[logistics]
+
+[it]
+
+751 => 04042019,IT 1,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+[sales]
+
+851 => 04042019,Saler 1,,,saycid=yes|forcename=yes|forcegreeting=yes
+
+852 => 04042019,Saler 2,,,saycid=yes|forcename=yes|forcegreeting=yes
+
